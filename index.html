@@ -23,13 +23,14 @@
             align-items: center;
             justify-content: center;
         }
-        .main-container {
+         .main-container {
             width: 90%;
             max-width: 600px;
             background-color: #ffffff;
             border-radius: 20px;
             padding: 40px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-top: 20px; /* إضافة هامش علوي */
         }
         .title {
             font-size: 2rem;
@@ -250,16 +251,24 @@
     <script>
         let downloadHistory = JSON.parse(localStorage.getItem('downloadHistory')) || [];
 
-        function updateDownloadHistory(title, author, thumbnailUrl, downloadUrl, format) {
+        function generateUniqueFileName(title, format) {
+            const timestamp = new Date().getTime();
+            const randomString = Math.random().toString(36).substring(2, 8);
+            const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 20);
+            return `${safeTitle}_${timestamp}_${randomString}.${format}`;
+        }
+
+        function updateDownloadHistory(title, author, thumbnailUrl, downloadUrl, format, filename) {
             downloadHistory.unshift({ 
                 title: title, 
                 author: author,
                 thumbnailUrl: thumbnailUrl,
                 downloadUrl: downloadUrl,
                 format: format,
+                filename: filename,
                 date: new Date().toLocaleString() 
             });
-            if (downloadHistory.length > 5) downloadHistory.pop();
+            if (downloadHistory.length > 100) downloadHistory.pop();
             localStorage.setItem('downloadHistory', JSON.stringify(downloadHistory));
             displayDownloadHistory();
         }
@@ -274,7 +283,7 @@
                         <div class="history-author">${item.author}</div>
                         <div class="history-date">${item.date}</div>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary btn-redownload" onclick="redownload('${item.downloadUrl}', '${item.title}', '${item.format}')">
+                    <button class="btn btn-sm btn-outline-primary btn-redownload" onclick="redownload('${item.downloadUrl}', '${item.filename}', '${item.format}')">
                         إعادة التنزيل
                     </button>
                 </div>
@@ -302,7 +311,6 @@
                     let blob;
                     if (format === 'mp3') {
                         blob = new Blob([this.response], {type: 'audio/mpeg'});
-                        filename = filename.replace('.mp4', '.mp3');
                     } else {
                         blob = new Blob([this.response], {type: 'video/mp4'});
                     }
@@ -368,7 +376,7 @@
                     if (data.code === 0) {
                         const downloadLink = format === 'mp3' ? data.data.music : data.data.play;
                         const videoTitle = data.data.title;
-                        const safeFilename = videoTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() + (format === 'mp3' ? '.mp3' : '.mp4');
+                        const uniqueFilename = generateUniqueFileName(videoTitle, format);
                         const authorName = data.data.author.nickname;
                         const thumbnailUrl = data.data.cover;
 
@@ -386,8 +394,8 @@
                             </div>
                         `;
 
-                        downloadVideo(downloadLink, safeFilename, format);
-                        updateDownloadHistory(videoTitle, authorName, thumbnailUrl, downloadLink, format);
+                        downloadVideo(downloadLink, uniqueFilename, format);
+                        updateDownloadHistory(videoTitle, authorName, thumbnailUrl, downloadLink, format, uniqueFilename);
                     } else {
                         showError("حدث خطأ أثناء محاولة تنزيل الملف. يرجى التحقق من الرابط والمحاولة مرة أخرى.");
                     }
